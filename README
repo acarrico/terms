@@ -1,0 +1,27 @@
+terms, by Anthony Carrico <acarrico@memebeam.org>
+
+This work is in the public domain.
+
+Work with fully expanded program terms in Racket.
+
+TEST:
+
+In the terms directory, try
+  raco test main.rkt
+to run the rackunit tests. Look at the tests for examples.
+
+USE:
+
+From the parent of the terms directory, link the collection with
+  raco link terms
+and then use terms as a module. For example:
+
+  #lang racket
+  (require terms)
+  (term=? #'(#%plain-lambda (x) x) #'(#%plain-lambda (y) y))
+
+READ:
+
+The source code is outlined with allout mode in emacs. It is most
+convenient. When you see a line starting with ";;;_*", put the cursor
+on the bullet and use the h and s keys to hide and show the content.
