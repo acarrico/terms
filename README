@@ -22,6 +22,6 @@ and then use terms as a module. For example:
 
 READ:
 
-The source code is outlined with allout mode in emacs. It is most
-convenient. When you see a line starting with ";;;_*", put the cursor
-on the bullet and use the h and s keys to hide and show the content.
+The source code is outlined with allout mode in emacs. When you see a
+line starting with ";;;_*", put the cursor on the bullet and use the h
+and s keys to hide and show the content.
