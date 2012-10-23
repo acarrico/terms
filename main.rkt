@@ -60,7 +60,11 @@
      #'id)
     
     ((quote datum)
-     #'expr)))
+     #'expr)
+    
+    (_
+     (error "canonicalize: unrecognized or unimplemented fully expanded program form." term))
+    ))
 ;;;_ * tests
 (module+
  test
