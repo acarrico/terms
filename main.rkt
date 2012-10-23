@@ -9,7 +9,7 @@
 ;;;_* canonicalize 
 ;;;_ * definition
 (define (canonicalize term) ;; -> canonicalized-term
-  (syntax-case term (#%plain-app #%plain-lambda begin #%expression quote)
+  (syntax-case term (#%plain-app #%plain-lambda begin #%expression quote case-lambda)
 
     ((#%plain-app expr ...)
      #`(#%plain-app #,@(map canonicalize (syntax->list #'(expr ...)))))
@@ -24,6 +24,13 @@
     ;; eliminate multiple body terms
     ((#%plain-lambda formals expr ...)
      (canonicalize #`(#%plain-lambda formals (begin expr ...))))
+
+    ((case-lambda (more ...) ...)
+     #`(case-lambda #,@(map
+			(lambda (c)
+			  (with-syntax (((ignore more ...) (canonicalize c)))
+			    #'(more ...)))
+			(syntax->list #'((#%plain-lambda more ...) ...)))))
 
     ;; eliminate single term begin
     ;; flatten nested begin
@@ -67,7 +74,7 @@
 ;;;_* term=?      
 ;;;_ * definition
 (define (term=?-aux x y bindings)
-  (syntax-case #`(#,x #,y) (#%plain-lambda begin #%plain-app quote)
+  (syntax-case #`(#,x #,y) (#%plain-lambda begin #%plain-app quote case-lambda)
     (((begin expr-x ...)
       (begin expr-y ...))
      (let ((exprs-x (syntax->list #'(expr-x ...)))
@@ -109,6 +116,19 @@
       (append (map syntax->list (syntax->list #'((id-x id-y) ...)))
 	      (cons (list #'rest-id-x #'rest-id-y)
 		    bindings))))
+
+    (((case-lambda x ...)
+      (case-lambda y ...))
+     (let ((cases-x (syntax->list #'(x ...)))
+	   (cases-y (syntax->list #'(y ...))))
+       (and (= (length cases-x) (length cases-y))
+	    (andmap (lambda (x y)
+		      (term=?-aux
+		       #`(#%plain-lambda #,@x)
+		       #`(#%plain-lambda #,@y)
+		       bindings))
+		    cases-x
+		    cases-y))))
 
     ((id-x id-y)
      (and (identifier? #'id-x) (identifier? #'id-y))
@@ -170,6 +190,12 @@
  (check term=? #'(quote x) #'(quote x))
  (check term=? #'(quote 1) #'(quote 1))
  (check term=? #'(quote "hello") #'(quote "hello"))
+
+ (check term=?
+	#'(case-lambda (x x)
+		       ((x y z) (#%plain-app x y z)))
+	#'(case-lambda (x x)
+		       ((a b c) (#%plain-app a b c))))
  )
 ;;;_* 
 ;;; Local variables:
