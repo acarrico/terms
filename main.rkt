@@ -9,7 +9,7 @@
 ;;;_* canonicalize 
 ;;;_ * definition
 (define (canonicalize term) ;; -> canonicalized-term
-  (syntax-case term (#%plain-app #%plain-lambda begin #%expression quote case-lambda)
+  (syntax-case term (#%plain-app #%plain-lambda begin #%expression quote case-lambda if)
 
     ((#%plain-app expr ...)
      #`(#%plain-app #,@(map canonicalize (syntax->list #'(expr ...)))))
@@ -61,6 +61,11 @@
     
     ((quote datum)
      #'expr)
+
+    ((if test-expr then-expr else-expr)
+     #`(if #,(canonicalize #'test-expr)
+	   #,(canonicalize #'then-expr)
+	   #,(canonicalize #'else-expr)))
     
     (_
      (error "canonicalize: unrecognized or unimplemented fully expanded program form." term))
@@ -78,7 +83,7 @@
 ;;;_* term=?      
 ;;;_ * definition
 (define (term=?-aux x y bindings)
-  (syntax-case #`(#,x #,y) (#%plain-lambda begin #%plain-app quote case-lambda)
+  (syntax-case #`(#,x #,y) (#%plain-lambda begin #%plain-app quote case-lambda if)
     (((begin expr-x ...)
       (begin expr-y ...))
      (let ((exprs-x (syntax->list #'(expr-x ...)))
@@ -147,6 +152,12 @@
      ;; ISSUE: which equal?
      (equal? #'datum-x #'datum-y))
 
+    (((if test-expr-x then-expr-x else-expr-x)
+      (if test-expr-y then-expr-y else-expr-y))
+     (and (term=?-aux #'test-expr-x #'test-expr-y bindings)
+	  (term=?-aux #'then-expr-x #'then-expr-y bindings)
+	  (term=?-aux #'else-expr-x #'else-expr-y bindings)))
+
     (else
      #f)))
 
@@ -200,6 +211,10 @@
 		       ((x y z) (#%plain-app x y z)))
 	#'(case-lambda (x x)
 		       ((a b c) (#%plain-app a b c))))
+
+ (check term=?
+	#'(#%plain-lambda (a b c) (if (#%plain-app a) b c))
+	#'(#%plain-lambda (x y z) (if (#%plain-app x) y z)))
  )
 ;;;_* 
 ;;; Local variables:
