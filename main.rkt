@@ -11,7 +11,8 @@
 ;;;_ * definition
 (define (canonicalize term) ;; -> canonicalized-term
   (syntax-case term
-      (#%plain-app #%plain-lambda begin #%expression quote case-lambda if begin0)
+      (#%plain-app #%plain-lambda begin #%expression quote case-lambda if begin0
+       quote-syntax)
 
     ((#%plain-app expr ...)
      #`(#%plain-app #,@(map canonicalize (syntax->list #'(expr ...)))))
@@ -71,6 +72,9 @@
 
     ((begin0 expr ...)
      #`(begin0 #,@(syntax-map canonicalize #'(expr ...))))
+
+    ((quote-syntax datum)
+     #'expr)
     
     (_
      (error "canonicalize: unrecognized or unimplemented fully expanded program form." term))
@@ -89,7 +93,8 @@
 ;;;_ * definition
 (define (term=?-aux x y bindings)
   (syntax-case #`(#,x #,y)
-      (#%plain-lambda begin #%plain-app quote case-lambda if begin0)
+      (#%plain-lambda begin #%plain-app quote case-lambda if begin0
+       quote-syntax)
     (((begin expr-x ...)
       (begin expr-y ...))
      (let ((exprs-x (syntax->list #'(expr-x ...)))
@@ -171,6 +176,11 @@
        (and (= (length exprs-x) (length exprs-y))
 	    (andmap (lambda (x y) (term=?-aux x y bindings)) exprs-x exprs-y))))
 
+    (((quote-syntax datum-x)
+      (quote-syntax datum-y))
+     ;; ISSUE: which equal? this is pretty sketchy:
+     (equal? (syntax->datum #'datum-x) (syntax->datum #'datum-y)))
+
     (else
      #f)))
 
@@ -232,6 +242,9 @@
  (check term=?
 	#'(#%plain-lambda (a b) (begin0 a (#%plain-app b)))
 	#'(#%plain-lambda (x y) (begin0 x (#%plain-app y))))
+
+ (check term=?
+	#'(quote-syntax a) #'(quote-syntax a))
 
  )
 ;;;_* 
