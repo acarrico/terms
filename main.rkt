@@ -1,6 +1,7 @@
 #lang racket
 
 (require racket/syntax)
+(require (only-in unstable/syntax syntax-map))
 
 (provide canonicalize term=?)
 
@@ -9,7 +10,8 @@
 ;;;_* canonicalize 
 ;;;_ * definition
 (define (canonicalize term) ;; -> canonicalized-term
-  (syntax-case term (#%plain-app #%plain-lambda begin #%expression quote case-lambda if)
+  (syntax-case term
+      (#%plain-app #%plain-lambda begin #%expression quote case-lambda if begin0)
 
     ((#%plain-app expr ...)
      #`(#%plain-app #,@(map canonicalize (syntax->list #'(expr ...)))))
@@ -66,6 +68,9 @@
      #`(if #,(canonicalize #'test-expr)
 	   #,(canonicalize #'then-expr)
 	   #,(canonicalize #'else-expr)))
+
+    ((begin0 expr ...)
+     #`(begin0 #,@(syntax-map canonicalize #'(expr ...))))
     
     (_
      (error "canonicalize: unrecognized or unimplemented fully expanded program form." term))
@@ -83,7 +88,8 @@
 ;;;_* term=?      
 ;;;_ * definition
 (define (term=?-aux x y bindings)
-  (syntax-case #`(#,x #,y) (#%plain-lambda begin #%plain-app quote case-lambda if)
+  (syntax-case #`(#,x #,y)
+      (#%plain-lambda begin #%plain-app quote case-lambda if begin0)
     (((begin expr-x ...)
       (begin expr-y ...))
      (let ((exprs-x (syntax->list #'(expr-x ...)))
@@ -158,6 +164,13 @@
 	  (term=?-aux #'then-expr-x #'then-expr-y bindings)
 	  (term=?-aux #'else-expr-x #'else-expr-y bindings)))
 
+    (((begin0 expr-x ...)
+      (begin0 expr-y ...))
+     (let ((exprs-x (syntax->list #'(expr-x ...)))
+	   (exprs-y (syntax->list #'(expr-y ...))))
+       (and (= (length exprs-x) (length exprs-y))
+	    (andmap (lambda (x y) (term=?-aux x y bindings)) exprs-x exprs-y))))
+
     (else
      #f)))
 
@@ -215,6 +228,11 @@
  (check term=?
 	#'(#%plain-lambda (a b c) (if (#%plain-app a) b c))
 	#'(#%plain-lambda (x y z) (if (#%plain-app x) y z)))
+
+ (check term=?
+	#'(#%plain-lambda (a b) (begin0 a (#%plain-app b)))
+	#'(#%plain-lambda (x y) (begin0 x (#%plain-app y))))
+
  )
 ;;;_* 
 ;;; Local variables:
