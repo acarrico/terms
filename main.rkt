@@ -249,6 +249,6 @@
  )
 ;;;_* 
 ;;; Local variables:
-;;; mode: scheme
+;;; mode: racket
 ;;; mode: allout
 ;;; End:
