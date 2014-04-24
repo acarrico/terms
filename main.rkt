@@ -1,13 +1,13 @@
 #lang racket
 
 (require racket/syntax)
-(require (only-in unstable/syntax syntax-map))
+(require syntax/stx)
 
 (provide canonicalize term=?)
 
 (module+ test (require rackunit))
 
-;;;_* canonicalize 
+;;;_* canonicalize
 ;;;_ * definition
 (define (canonicalize term) ;; -> canonicalized-term
   (syntax-case term
@@ -61,7 +61,7 @@
     (id
      (identifier? #'id)
      #'id)
-    
+
     ((quote datum)
      #'expr)
 
@@ -71,11 +71,11 @@
 	   #,(canonicalize #'else-expr)))
 
     ((begin0 expr ...)
-     #`(begin0 #,@(syntax-map canonicalize #'(expr ...))))
+     #`(begin0 #,@(stx-map canonicalize #'(expr ...))))
 
     ((quote-syntax datum)
      #'expr)
-    
+
     (_
      (error "canonicalize: unrecognized or unimplemented fully expanded program form." term))
     ))
@@ -89,7 +89,7 @@
  (check free-identifier=? #'x (canonicalize #'(begin (begin x))))
  ;; NOTE: check more cases once term=? is defined below.
  )
-;;;_* term=?      
+;;;_* term=?
 ;;;_ * definition
 (define (term=?-aux x y bindings)
   (syntax-case #`(#,x #,y)
@@ -247,7 +247,7 @@
 	#'(quote-syntax a) #'(quote-syntax a))
 
  )
-;;;_* 
+;;;_*
 ;;; Local variables:
 ;;; mode: racket
 ;;; mode: allout
