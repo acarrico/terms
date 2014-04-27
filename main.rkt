@@ -2,8 +2,9 @@
 
 (require racket/syntax)
 (require syntax/stx)
+(require syntax/parse syntax/kerncase syntax/id-table)
 
-(provide canonicalize term=?)
+(provide canonicalize term=? canonicalize-kernel-form-identifier canonicalize-kernel-form-identifiers)
 
 (module+ test (require rackunit))
 
@@ -247,6 +248,54 @@
 	#'(quote-syntax a) #'(quote-syntax a))
 
  )
+;;;_* canonicalize-kernel-form-identifier[s]
+;;;_ * definition
+
+(define kernel-form-identifier-table
+  (make-immutable-free-id-table
+      (map (lambda (id) (cons id id)) (kernel-form-identifier-list))))
+
+(define (canonicalize-kernel-form-identifier id)
+  (free-id-table-ref kernel-form-identifier-table id (lambda () id)))
+
+(define (canonicalize-kernel-form-identifiers stx)
+  (syntax-parse stx
+    #:literal-sets (kernel-literals)
+    ((#%plain-lambda formals expr ...+)
+     ;; Can there still be shadowing?
+     #`(#%plain-lambda formals
+         #,@(map canonicalize-kernel-form-identifiers (syntax->list #'(expr ...)))))
+    ((#%expression expr)
+     #`(#%expression #,(canonicalize-kernel-form-identifiers #'expr)))
+    ;; Let's not assume all macros are expanded, and remaining forms
+    ;; are applications:
+    ((op-args ...)
+     #`(#,@(map canonicalize-kernel-form-identifiers (syntax->list #'(op-args ...)))))
+    (x:id
+     (canonicalize-kernel-form-identifier #'x))
+    (x
+     #'x)))
+
+;;;_ * tests
+(module+
+ test
+
+ (define-syntax (le stx)
+   (syntax-case stx ()
+     ((_ x)
+      (with-syntax ((expanded (local-expand #'x 'expression '())))
+        #'(syntax expanded)))))
+
+ (define identity (le (lambda (x) x)))
+
+ ;; Here the lambda prints a lambda:
+ (check equal? (syntax->datum identity)
+        '(lambda (x) x))
+
+ ;; But it is actually free-identifier=? to #%plain-lambda:
+ (check equal? (syntax->datum (canonicalize-kernel-form-identifiers identity))
+        '(#%plain-lambda (x) x))
+)
 ;;;_*
 ;;; Local variables:
 ;;; mode: racket
